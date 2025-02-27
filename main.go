@@ -1,41 +1,264 @@
 package main
 
 import (
-	"bufio"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
+	"math/rand"
 	"os"
+	"prj0/domain"
+	"sort"
+	"strconv"
 	"time"
 )
 
+const (
+	totalPoints       = 100
+	pointsPerQuestion = 20
+)
+
+var id uint64 = 1
+
 func main() {
-	file, _ := os.OpenFile("notes.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	defer file.Close()
+	fmt.Println("Вітаємо у грі!")
 
-	scanner := bufio.NewScanner(os.Stdin) // Створюємо сканер для читання з консолі
-	fmt.Println("Введіть текст:")
-	text := "2"
-
-	for text != "0" {
-		file, _ := os.OpenFile("notes.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		scanner.Scan() // Чекаємо введення користувача
-		text = scanner.Text()
-		if text == "1" {
-			file, _ := os.OpenFile("notes.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-			os.Truncate("notes.txt", 0)
-			defer file.Close()
-		} else if text != "0" {
-			file, _ := os.OpenFile("notes.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-			file.WriteString(text + "\n")
-			defer file.Close()
+	users := getUsers()
+	for _, user := range users {
+		if user.Id >= id {
+			id = user.Id + 1
 		}
-		data, _ := os.ReadFile("notes.txt")
-		fmt.Println("\nВаші дані \n" + string(data))
-		defer file.Close()
+	}
+
+	sortAndSave(users)
+	for {
+		menu()
+
+		choise := ""
+		fmt.Scan(&choise)
+
+		switch choise {
+		case "1":
+			user := play()
+			users = getUsers()
+			users = append(users, user)
+			sortAndSave(users)
+		case "2":
+			users = getUsers()
+			for _, u := range users {
+				fmt.Printf(
+					"Id: %v, Name: %s, Time: %v\n",
+					u.Id, u.Name, u.TimeSpent,
+				)
+			}
+		case "4":
+			return
+		case "3":
+			fmt.Println("Ви впевнені що хочете очистити рейтинг? 1 - так,2 - ні")
+			rem := ""
+			fmt.Scan(&rem)
+			if rem == "1" {
+				os.Truncate("users.json", 0)
+				fmt.Println("Рейтинг очищено,оберіть наступну дію")
+			} else if rem == "2" {
+				fmt.Println("Дякую що одумались,оберіть наступну дію")
+
+			} else {
+				fmt.Println("Ви обрали не ту дію,спробуйте ще раз")
+
+			}
+
+		default:
+		}
+	}
+
+}
+
+func menu() {
+	fmt.Println("1. Грати")
+	fmt.Println("2. Рейтинг")
+	fmt.Println("3. Очистити")
+	fmt.Println("4. Вийти")
+}
+
+func play() domain.User {
+	TimeStart := time.Now()
+	myPoints := 0
+
+	for myPoints < totalPoints {
+		x, y := rand.Intn(2), rand.Intn(2)
+		char := rand.Intn(4)
+		chs := ""
+		switch char {
+		case 0:
+			chs = "+"
+			fmt.Printf("\n%v %s %v = ", x, chs, y)
+
+			ans := ""
+			fmt.Scan(&ans)
+			if ans == "HESOYAM" {
+				fmt.Println("А ви читер пане,але гаразд")
+				myPoints = totalPoints
+			}
+
+			ansInt, err := strconv.Atoi(ans)
+
+			if err != nil && ans != "HESOYAM" {
+				fmt.Println("Невдале значення, давай по новой")
+			} else if ans != "HESOYAM" {
+				if ansInt == x+y {
+					myPoints += pointsPerQuestion
+					fmt.Printf("Правильно! У вас %v очок!", myPoints)
+				} else {
+					fmt.Println("Не праивльно!")
+				}
+			}
+		case 1:
+			chs = "-"
+			fmt.Printf("\n%v %s %v = ", x, chs, y)
+
+			ans := ""
+			fmt.Scan(&ans)
+			if ans == "HESOYAM" {
+				fmt.Println("А ви читер пане,але гаразд")
+				myPoints = totalPoints
+			}
+
+			ansInt, err := strconv.Atoi(ans)
+
+			if err != nil && ans != "HESOYAM" {
+				fmt.Println("Невдале значення, давай по новой")
+			} else {
+				if ansInt == x-y {
+					myPoints += pointsPerQuestion
+					fmt.Printf("Правильно! У вас %v очок!", myPoints)
+				} else {
+					fmt.Println("Не праивльно!")
+				}
+			}
+		case 2:
+			chs = "*"
+			fmt.Printf("\n%v %s %v = ", x, chs, y)
+
+			ans := ""
+			fmt.Scan(&ans)
+			if ans == "HESOYAM" {
+				fmt.Println("А ви читер пане,але гаразд")
+				myPoints = totalPoints
+			}
+
+			ansInt, err := strconv.Atoi(ans)
+
+			if err != nil && ans != "HESOYAM" {
+				fmt.Println("Невдале значення, давай по новой")
+			} else {
+				if ansInt == x*y {
+					myPoints += pointsPerQuestion
+					fmt.Printf("Правильно! У вас %v очок!", myPoints)
+				} else {
+					fmt.Println("Не праивльно!")
+				}
+			}
+		case 3:
+			chs = "/"
+			if y == 0 {
+				y = 1
+			}
+			fmt.Printf("\n%v %s %v = ", x, chs, y)
+
+			ans := ""
+			fmt.Scan(&ans)
+			if ans == "HESOYAM" {
+				fmt.Println("А ви читер пане,але гаразд")
+				myPoints = totalPoints
+
+			}
+
+			ansInt, err := strconv.Atoi(ans)
+
+			if err != nil && ans != "HESOYAM" {
+				fmt.Println("Невдале значення, давай по новой")
+			} else {
+				if ansInt == x/y && y != 0 {
+					myPoints += pointsPerQuestion
+					fmt.Printf("Правильно! У вас %v очок!", myPoints)
+				} else {
+					fmt.Println("Не праивльно!,або вам не пощастило натрапити на Y = 0")
+				}
+			}
+
+		}
 
 	}
-	
-	time.Sleep(3 * time.Second)
 
+	TimeFinish := time.Now()
+	timeSpent := TimeFinish.Sub(TimeStart)
+
+	fmt.Printf("\nВаш час: %v", timeSpent)
+	fmt.Print("Введіть ваше ім'я: ")
+
+	name := ""
+	fmt.Scan(&name)
+
+	user := domain.User{
+		Id:        id,
+		Name:      name,
+		TimeSpent: timeSpent,
+	}
+	id++
+
+	return user
+}
+
+func sortAndSave(users []domain.User) {
+	sort.SliceStable(users, func(i int, j int) bool {
+		return users[i].TimeSpent < users[j].TimeSpent
+	})
+
+	file, err := os.OpenFile("users.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		log.Printf("sortAndSave(os.OpenFile): %s", err)
+		return
+	}
+
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			log.Printf("sortAndSave(file.Close()): %s", err)
+		}
+	}()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(users)
+	if err != nil {
+		log.Printf("sortAndSave(encoder.Encode)): %s", err)
+		return
+	}
+}
+
+func getUsers() []domain.User {
+	var users []domain.User
+	file, err := os.Open("users.json")
+
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			_, err = os.Create("users.jsom")
+			if err != nil {
+				log.Printf("getUsers(os.Create): %s", err)
+			}
+			return nil
+		}
+		log.Printf("getUsers(os.Open): %s", err)
+		return nil
+	}
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&users)
+	if err != nil {
+		log.Printf("getUsers(decoder.Decode): %s", err)
+	}
+
+	return users
 }
 
 // )
